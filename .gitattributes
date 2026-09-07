@@ -1,3 +1,5 @@
+# Copyright The devcontainers Contributors
+
 * text=auto eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf

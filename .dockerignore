@@ -1,4 +1,5 @@
+# Copyright The devcontainers Contributors
+
 *
 !Dockerfile
-!config/
-!config/**
+!zshrc

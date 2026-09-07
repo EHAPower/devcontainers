@@ -12,10 +12,10 @@ SAVEHIST=50000
 setopt HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE SHARE_HISTORY
 bindkey -e
 
-# 用 fd 加速 fzf 文件搜索，配合目录跳转和常用终端快捷命令。
-export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
+# 用 apt 提供的 fdfind 加速 fzf 文件搜索，配合目录跳转和常用终端快捷命令。
+export FZF_DEFAULT_COMMAND='fdfind --type f --hidden --exclude .git'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-export FZF_ALT_C_COMMAND='fd --type d --hidden --exclude .git'
+export FZF_ALT_C_COMMAND='fdfind --type d --hidden --exclude .git'
 eval "$(zoxide init zsh)"
 
 alias ll='eza -lah --group-directories-first'

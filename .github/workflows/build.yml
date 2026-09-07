@@ -1,3 +1,5 @@
+# Copyright The devcontainers Contributors
+
 name: Build base image
 
 on:
@@ -6,14 +8,14 @@ on:
     paths:
       - Dockerfile
       - .dockerignore
-      - config/**
+      - zshrc
       - .github/workflows/build.yml
   pull_request:
     branches: [main]
     paths:
       - Dockerfile
       - .dockerignore
-      - config/**
+      - zshrc
       - .github/workflows/build.yml
   schedule:
     - cron: "0 3 * * 1"
@@ -25,73 +27,30 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
-  build-architecture:
-    name: Build ${{ matrix.architecture }}
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-      packages: write
-    env:
-      IMAGE: ghcr.io/ehapower/devcontainers
-      PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - architecture: amd64
-            platform: linux/amd64
-            runner: ubuntu-latest
-          - architecture: arm64
-            platform: linux/arm64
-            runner: ubuntu-24.04-arm
+  build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       - name: Log in to GHCR
-        if: env.PUBLISH == 'true'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build ${{ matrix.architecture }} image
+      - name: Build and push image
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: Dockerfile
-          platforms: ${{ matrix.platform }}
+          platforms: linux/amd64,linux/arm64
           pull: true
           no-cache: true
-          push: ${{ env.PUBLISH == 'true' }}
-          tags: ${{ env.IMAGE }}:build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.architecture }}
+          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          tags: ghcr.io/ehapower/devcontainers:latest
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
-
-  publish-manifest:
-    name: Publish multi-architecture manifest
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: build-architecture
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    env:
-      IMAGE: ghcr.io/ehapower/devcontainers
-      BUILD_TAG: build-${{ github.run_id }}-${{ github.run_attempt }}
-    steps:
-      - uses: docker/setup-buildx-action@v4
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish latest and build manifest
-        run: |
-          docker buildx imagetools create \
-            --tag "${IMAGE}:latest" \
-            --tag "${IMAGE}:${BUILD_TAG}" \
-            "${IMAGE}:${BUILD_TAG}-amd64" \
-            "${IMAGE}:${BUILD_TAG}-arm64"

@@ -1,3 +1,5 @@
+# Copyright The devcontainers Contributors
+
 <type>(<scope>): <subject>
 
 # 类型：feat|fix|refactor|perf|test|docs|build|ci|chore|style|revert

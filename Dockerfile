@@ -14,23 +14,20 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-ENV LANG=en_US.UTF-8 \
-    LC_ALL=en_US.UTF-8 \
-    SHELL=/usr/bin/zsh \
-    EDITOR=nvim \
-    VISUAL=nvim \
+ENV SHELL=/usr/bin/zsh \
+    EDITOR=vim \
+    VISUAL=vim \
     RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
-    MISE_DATA_DIR=/opt/mise \
     UV_PYTHON_INSTALL_DIR=/opt/python \
     UV_PYTHON_BIN_DIR=/usr/local/bin \
     UV_TOOL_DIR=/opt/uv-tools \
     UV_TOOL_BIN_DIR=/usr/local/bin \
     PLANTUML_JAR=/opt/plantuml.jar \
-    PATH=/opt/mise/shims:/usr/local/cargo/bin:/root/.local/bin:${PATH}
+    PATH=/usr/local/cargo/bin:/root/.local/bin:${PATH}
 
 # Ubuntu 的当前仓库提供 C/C++、交叉编译、诊断和图形渲染所需的系统库。
-# 每次构建更新系统包；语言和独立 CLI 则由下方各自的上游安装器保持最新。
+# 每次构建更新系统包；语言工具链与扩展由下方各自的安装器维护。
 # 清单依次按引导、原生构建、交叉编译、设备诊断、终端排障、文档渲染和交互终端排列。
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -38,10 +35,15 @@ RUN apt-get update && apt-get upgrade -y && \
         curl \
         wget \
         git \
+        git-lfs \
+        gh \
         openssh-client \
         gnupg \
         locales \
+        language-pack-zh-hans \
         build-essential \
+        cmake \
+        ninja-build \
         clang \
         clang-format \
         clang-tidy \
@@ -82,6 +84,10 @@ RUN apt-get update && apt-get upgrade -y && \
         less \
         tree \
         htop \
+        jq \
+        yq \
+        shellcheck \
+        shfmt \
         graphviz \
         default-jre-headless \
         poppler-utils \
@@ -93,11 +99,23 @@ RUN apt-get update && apt-get upgrade -y && \
         libasound2t64 \
         zsh \
         tmux \
+        lazygit \
+        bat \
+        eza \
+        fd-find \
+        fzf \
+        just \
+        ripgrep \
+        zoxide \
         vim && \
-    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    sed -i -e '/en_US.UTF-8/s/^# //g' \
+        -e '/zh_CN.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen && \
     usermod --shell /usr/bin/zsh root && \
     rm -rf /var/lib/apt/lists/*
+
+# 默认英文 UTF-8；可通过 LANG=zh_CN.UTF-8 切换到简体中文。
+ENV LANG=en_US.UTF-8
 
 # 直接复用官方发布的多架构二进制，避免在基础镜像内重建 Node、uv 或 Docker CLI。
 COPY --from=node /usr/local/ /usr/local/
@@ -105,17 +123,12 @@ COPY --from=uv /uv /uvx /usr/local/bin/
 COPY --from=docker /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker /usr/local/libexec/docker/cli-plugins/ /usr/local/libexec/docker/cli-plugins/
 
-# mise 统一安装与系统包不同步的常用 CLI，并按目标架构解析上游最新发行版。
-COPY config/mise.toml /etc/mise/config.toml
-RUN curl -fsSL https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh && \
-    mise install --yes
-
 # Rust 跟随 stable；预装 STM32H7 和 Linux AArch64 目标及常用开发组件。
 RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | \
     sh -s -- -y --no-modify-path --profile minimal --default-toolchain stable \
         --component clippy,rustfmt,rust-src,rust-analyzer,llvm-tools-preview \
         --target thumbv7em-none-eabihf,aarch64-unknown-linux-gnu && \
-    cargo binstall --no-confirm cargo-edit cargo-expand cargo-binutils probe-rs-tools
+    cargo install --locked cargo-edit cargo-expand cargo-binutils probe-rs-tools
 
 # 默认 Python 与 pip 使用预置虚拟环境；各项目仍可用 uv 创建自己的隔离环境。
 RUN uv python install --default && \
@@ -148,7 +161,7 @@ RUN git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /opt/oh-my-zsh &&
         /opt/oh-my-zsh/custom/plugins/zsh-autosuggestions && \
     git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git \
         /opt/oh-my-zsh/custom/plugins/zsh-syntax-highlighting
-COPY config/zshrc /root/.zshrc
+COPY zshrc /root/.zshrc
 
 # 镜像只提供工作区安全目录和 LFS 支持；身份、提交模板和工作流由各仓库决定。
 RUN git config --system --add safe.directory /workspace && \
