@@ -25,6 +25,6 @@ docker build --pull -t devcontainers:local .
 
 验收只要求构建成功。
 
-GitHub Actions 使用单个 job，通过 Buildx + QEMU 构建 amd64/arm64 多架构镜像。修改 Dockerfile、zshrc 或构建工作流后，推送会构建并发布。每周一 03:00 UTC 自动更新，也可手动触发。
+GitHub Actions 使用 `ubuntu-latest`（amd64）和 `ubuntu-24.04-arm`（arm64）两个原生 runner 并行构建，不使用 QEMU。两个架构均构建成功后，合并 manifest 并发布 `latest` 多架构镜像。GitHub 当前没有提供 `ubuntu-latest-arm` 标签。修改 Dockerfile、zshrc 或构建工作流后，推送会构建并发布。每周一 03:00 UTC 自动更新，也可手动触发。
 
 镜像发布到 `ghcr.io/ehapower/devcontainers`，只提供 `latest` 标签。可选构建日志保存在仓库 `build/` 中。
