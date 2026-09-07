@@ -51,12 +51,11 @@ RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | \
       --target thumbv7em-none-eabihf,aarch64-unknown-linux-gnu && \
     cargo binstall --no-confirm cargo-edit cargo-expand cargo-binutils probe-rs-tools
 
-# Python CLI 各自隔离，项目可直接使用 uv venv / uv sync。
+# 默认 Python 与 pip 使用预置虚拟环境；项目仍可创建自己的 .venv。
 RUN uv python install --default && \
-    uv pip install --python /usr/local/bin/python --upgrade pip setuptools wheel && \
-    printf '#!/bin/sh\nexec python -m pip "$@"\n' > /usr/local/bin/pip && \
-    chmod +x /usr/local/bin/pip && ln -s pip /usr/local/bin/pip3 && \
+    uv venv --python /usr/local/bin/python --seed /opt/python-env && \
     uv tool install pre-commit && uv tool install ruff
+ENV PATH=/opt/python-env/bin:${PATH}
 
 RUN npm install -g npm@latest && hash -r && \
     npm install -g pnpm@latest @devcontainers/cli@latest \

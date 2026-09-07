@@ -22,7 +22,7 @@ FROM ghcr.io/ehapower/devcontainers:latest
 | 数据与排障 | jq、yq、ShellCheck、shfmt、curl、wget、rsync、tree、htop、file、lsof、strace、iproute2、ping、DNS tools、netcat、socat、USB tools |
 | 文档与容器 | Graphviz、Java、PlantUML、Mermaid CLI、Poppler、中文字体、Docker CLI、Buildx、Compose、Dev Container CLI |
 
-Python 项目可用 `uv venv` / `uv sync`；全局 Python CLI 各有独立环境。Docker CLI 连接外部 Docker daemon，项目按需配置连接和设备访问。
+默认 Python 与 pip 使用同一个预置虚拟环境。项目可用 `uv venv` / `uv sync`；全局 Python CLI 各有独立环境。Docker CLI 连接外部 Docker daemon，项目按需配置连接和设备访问。
 
 ## 终端与 Git
 
