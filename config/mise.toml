@@ -1,3 +1,4 @@
+# 这些独立 CLI 在镜像构建时解析 latest；项目语言依赖仍由各自的清单管理。
 [tools]
 bat = "latest"
 cargo-binstall = "latest"
