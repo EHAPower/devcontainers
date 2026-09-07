@@ -20,11 +20,11 @@ PATH、Vim 编辑器及语言工具链环境变量统一由 Dockerfile 的 `ENV`
 ## 构建与更新
 
 ```bash
-docker build --pull --no-cache -t devcontainers:local .
+docker build --pull -t devcontainers:local .
 ```
 
 验收只要求构建成功。
 
-GitHub Actions 使用单个 job，通过 Buildx + QEMU 构建 amd64/arm64 多架构镜像。修改 Dockerfile 或 zshrc 后，推送 main 会构建并发布；PR 只构建。每周一 03:00 UTC 自动更新，也可手动触发，只有 main 发布镜像。
+GitHub Actions 使用单个 job，通过 Buildx + QEMU 构建 amd64/arm64 多架构镜像。修改 Dockerfile、zshrc 或构建工作流后，推送会构建并发布。每周一 03:00 UTC 自动更新，也可手动触发。
 
 镜像发布到 `ghcr.io/ehapower/devcontainers`，只提供 `latest` 标签。可选构建日志保存在仓库 `build/` 中。
