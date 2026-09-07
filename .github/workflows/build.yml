@@ -7,14 +7,12 @@ on:
     branches: [main]
     paths:
       - Dockerfile
-      - .dockerignore
       - zshrc
       - .github/workflows/build.yml
   pull_request:
     branches: [main]
     paths:
       - Dockerfile
-      - .dockerignore
       - zshrc
       - .github/workflows/build.yml
   schedule:
