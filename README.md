@@ -1,92 +1,49 @@
 # devcontainers
 
-为 EHAPower 项目提供预装常用工具的基础开发镜像。共享工具在本仓库维护，项目专用依赖在各项目的 Dockerfile 中追加。
+EHAPower 的共享开发基础镜像。预装工具参考 eha_controller、ranger、ranger-monitor 的技术栈，以及日常 Mac 开发环境。
 
 ```dockerfile
 FROM ghcr.io/ehapower/devcontainers:latest
+# 在这里安装项目自己的依赖。
 ```
+
+默认用户为 `root`，默认 shell 为 zsh，工作目录为 `/workspace`。无需创建用户或配置 sudo。旧项目若设置了 `USER dev` 或 `remoteUser: dev`，切换镜像时删除该设置。
 
 ## 预装工具
 
-基础系统为 Ubuntu 26.04。构建时更新系统包，Rust 跟随 stable，Node.js 跟随官方 `node:current` 镜像，Python/npm 全局工具和 PlantUML 跟随当前版本。
-
 | 用途 | 工具 |
 |---|---|
-| Rust | rustup、rustc、Cargo、Clippy、rustfmt、llvm-tools-preview |
-| C/C++ 与 FFI | GCC/G++、Clang、LLVM、LLD、CMake、Ninja、Make、pkg-config、libclang、OpenSSL 开发库 |
-| Python | Python 3、pip、venv、独立环境中的 pre-commit |
-| Node.js | 官方 current Node.js、npm@latest、npm-check-updates |
-| 文档 | Graphviz、Java、PlantUML、Mermaid CLI |
-| 容器协作 | Dev Container CLI |
-| Git 与远程访问 | Git、Git LFS、GitHub CLI、OpenSSH client |
-| Shell 与排障 | zsh、vim、ripgrep、fd、bat、jq、tree、htop、less、curl、wget、unzip |
+| Rust | stable、Cargo、Clippy、rustfmt、rust-src、rust-analyzer、LLVM tools、cargo-binstall、cargo-edit、cargo-expand、cargo-binutils、probe-rs |
+| C/C++ | GCC/G++、Clang、clang-format、clang-tidy、LLVM/LLD、CMake、Ninja、Make、pkg-config、Autotools |
+| 交叉编译与硬件 | ARM bare-metal 与 AArch64 GNU 工具链、GDB multiarch、OpenOCD、dfu-util、can-utils；Rust 的 `thumbv7em-none-eabihf` 和 `aarch64-unknown-linux-gnu` target |
+| Python | 最新稳定 Python、uv/uvx、pip、venv、pre-commit、Ruff |
+| Node.js | current、npm、pnpm、npm-check-updates、Codex CLI |
+| Git 与终端 | Git、Git LFS、gh、lazygit、OpenSSH、zsh、tmux、neovim、vim、fzf、fd、ripgrep、bat、eza、zoxide、just |
+| 数据与排障 | jq、yq、ShellCheck、shfmt、curl、wget、rsync、tree、htop、file、lsof、strace、iproute2、ping、DNS tools、netcat、socat、USB tools |
+| 文档与容器 | Graphviz、Java、PlantUML、Mermaid CLI、Poppler、中文字体、Docker CLI、Buildx、Compose、Dev Container CLI |
 
-镜像提供 `dev` 用户、zsh 和免密码 sudo。镜像默认仍以 root 执行，便于派生 Dockerfile 安装系统包；Dev Container 使用 `remoteUser: dev`。默认工作区为 `/workspace`。
+Python 项目可用 `uv venv` / `uv sync`；全局 Python CLI 各有独立环境。Docker CLI 连接外部 Docker daemon，项目按需配置连接和设备访问。
 
-## 派生项目
+## 终端与 Git
 
-项目保留自己的 `.devcontainer/Dockerfile`，例如：
+zsh 使用 Oh My Zsh 的 `robbyrussell` 主题，启用 Git/fzf 插件、自动建议、语法高亮和历史去重。`Ctrl-R` 搜历史，`Ctrl-T` 找文件，`Alt-C` 选目录；`z` 跳常用目录，`ll` 列文件，`lt` 看目录树，`lg` 打开 lazygit。编辑器默认 neovim。
 
-```dockerfile
-FROM ghcr.io/ehapower/devcontainers:latest
+镜像只配置 Git LFS 和 `safe.directory=/workspace`。忽略项、文件属性、提交模板属于各仓库；镜像不设置身份和提交规则。
 
-# 在这里追加项目专用依赖。
-RUN rustup target add thumbv7em-none-eabihf
-```
-
-项目自己的 `devcontainer.json` 声明工作区、用户、容器名称及设备访问。H723、AArch64、CAN、数据库、模拟器等专用需求由派生项目维护。
-
-私有 GHCR package 需要给消费仓库授予 package 的 Actions Read 权限；消费仓库 workflow 声明 `packages: read` 并登录 GHCR。开发者通过 `docker login ghcr.io` 配置拉取凭据，凭据不写入仓库。
-
-## 构建与发布
-
-验收只要求镜像构建成功，不添加测试或运行时自检。
-
-宿主机安装 Docker 后，在仓库根目录构建本机架构镜像：
+本仓库的 `.gitattributes`、`.gitignore`、`.gitmessage` 参考 eha_controller 并精简。维护本仓库时，可启用中文提交模板：
 
 ```bash
-docker build --pull --progress=plain -t devcontainers:local .
+git config --local commit.template .gitmessage
 ```
 
-`.github/workflows/build.yml` 构建 `linux/amd64` 与 `linux/arm64`：
-
-- PR：只构建，不登录 GHCR、不发布。
-- main 上的 Dockerfile、构建上下文规则或 workflow 变更：构建并发布。
-- 每周一 03:00 UTC：重新构建并发布，以更新工具和系统包。
-- 手动运行：main 上构建并发布，其他分支只构建。
-
-发布地址：`ghcr.io/ehapower/devcontainers`。每次发布提供 `latest` 和 `build-<run_id>-<run_attempt>` 标签，并记录源码 commit。默认消费 `latest`；需要重现某次环境时使用对应镜像 digest。
-
-镜像产物保存在本地 Docker image store 或 GHCR。需要保存本地构建日志时，写入宿主机仓库的 `build/`（开发容器内对应 `/workspace/build/`），不提交 Git。
-
-## 维护本仓库
-
-| 用途 | 名称 |
-|---|---|
-| 发布基础镜像 | `ghcr.io/ehapower/devcontainers:latest` |
-| 本地镜像 | `devcontainers:local` |
-| Dev Container 显示名 | `devcontainers` |
-| 常驻开发容器 | `devcontainers-devcontainer-{username}-{branch}` |
-
-本仓库的 `.devcontainer/devcontainer.json` 直接构建根目录 Dockerfile。打开 Dev Container 前，在宿主 shell 中设置容器名称：
+## 构建与更新
 
 ```bash
-DEVCONTAINER_USER="$(id -un | sed -E 's/[^[:alnum:]_.-]+/-/g; s/^-+//; s/-+$//')"
-DEVCONTAINER_BRANCH="$(git branch --show-current | sed -E 's/[^[:alnum:]_.-]+/-/g; s/^-+//; s/-+$//')"
-if [ -z "$DEVCONTAINER_BRANCH" ]; then echo "请先切换到具名 Git 分支" >&2; exit 1; fi
-export DEVCONTAINER_NAME="devcontainers-devcontainer-${DEVCONTAINER_USER}-${DEVCONTAINER_BRANCH}"
+docker build --pull --no-cache -t devcontainers:local .
 ```
 
-也可在完成镜像构建后，通过 Docker 创建并复用常驻容器：
+验收只要求构建成功。修改 Dockerfile 或 config/ 后，推送 main 会在原生 amd64/arm64 runner 并行构建，两者成功后发布多架构镜像；PR 只构建。每周一 03:00 UTC 自动更新，也可手动触发。
 
-```bash
-docker inspect "$DEVCONTAINER_NAME" >/dev/null 2>&1 || docker run -d --name "$DEVCONTAINER_NAME" --mount "type=bind,src=$PWD,dst=/workspace" -w /workspace devcontainers:local sleep infinity
-docker start "$DEVCONTAINER_NAME"
-docker exec -it -u dev "$DEVCONTAINER_NAME" zsh
-```
+基础系统跟随 `ubuntu:latest`，Node.js 跟随 `node:current`，Rust 跟随 stable，uv 安装最新稳定 Python。独立 CLI 由 [mise](https://mise.jdx.dev/) 从上游获取 `latest`，npm/Python CLI 和 PlantUML 使用最新发行版，zsh 插件跟随上游。系统库、编译器和硬件工具使用当前 Ubuntu 软件源的最新包版本，可能晚于上游源码发行。构建使用 `--pull --no-cache`，确保重新解析更新。
 
-## 来源与迁移
-
-初始 Dockerfile 来自 `EHAPower/project_template` 的 `.devcontainer/base.Dockerfile`，基线为 `e3eff71929d32a778a13f8a06bf3beae6aa35267`，保留原 MIT 许可和版权说明。
-
-本仓库独立维护新镜像地址。`ghcr.io/ehapower/project_template/devcontainer` 的现有发布及各派生项目引用保持原状，项目可以在需要时切换到新地址。
+镜像发布到 `ghcr.io/ehapower/devcontainers`，提供 `latest` 和 `build-<run_id>-<run_attempt>` 标签；需要重现或回退时使用对应 digest。可选构建日志保存在仓库 `build/` 中。
