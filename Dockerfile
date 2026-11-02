@@ -63,6 +63,9 @@ RUN apt-get update && apt-get upgrade -y && \
         gcc-arm-none-eabi \
         binutils-arm-none-eabi \
         libnewlib-arm-none-eabi \
+        gcc-riscv64-unknown-elf \
+        binutils-riscv64-unknown-elf \
+        picolibc-riscv64-unknown-elf \
         gdb-multiarch \
         openocd \
         dfu-util \
@@ -133,6 +136,7 @@ RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | \
 # 默认 Python 与 pip 使用预置虚拟环境；各项目仍可用 uv 创建自己的隔离环境。
 RUN uv python install --default && \
     uv venv --python /usr/local/bin/python --seed /opt/python-env && \
+    uv pip install --python /opt/python-env/bin/python PyYAML==6.0.3 Jinja2==3.1.6 && \
     uv tool install pre-commit && \
     uv tool install ruff
 
