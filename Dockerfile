@@ -4,6 +4,40 @@
 FROM node:current AS node
 FROM ghcr.io/astral-sh/uv:latest AS uv
 FROM docker:cli AS docker
+
+# Verimag 只发布 x86_64 Linux 二进制；两个平台均从同一份源码编译 lv6。
+FROM ubuntu:latest AS lustre-tools
+ARG TARGETARCH
+WORKDIR /tmp
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates curl git libffi-dev m4 ocaml opam pkg-config unzip
+RUN opam init --yes --disable-sandboxing --compiler=ocaml-system && \
+    opam pin add --yes --no-action lutils.1.56.0 https://www-verimag.imag.fr/DIST-TOOLS/SYNCHRONE/pool/lutils.v1.56.0.tgz && \
+    opam pin add --yes --no-action rdbg.1.200.11 https://www-verimag.imag.fr/DIST-TOOLS/SYNCHRONE/pool/rdbg.v1.200.11.tgz
+RUN set -eu; \
+    src=https://www-verimag.imag.fr/DIST-TOOLS/SYNCHRONE/pool/lustre-v6.v6.113.0.tgz; \
+    curl -fsSL --retry 3 "$src" -o lv6.tgz; \
+    tar -xzf lv6.tgz; \
+    cd lustre-v6.v6.113.0; \
+    opam install --yes --deps-only ./lustre-v6.opam; \
+    opam exec -- dune build bin/lv6/main.exe; \
+    install -D _build/default/bin/lv6/main.exe /out/bin/lv6; \
+    install -Dm644 LICENSE /out/share/doc/lv6/LICENSE; \
+    echo "$src" > /out/share/doc/lv6/source
+
+# Kind 2 使用对应架构的 v3.0.0 发布包。
+RUN set -eu; \
+    case "$TARGETARCH" in \
+        amd64) arch=x86_64 ;; \
+        arm64) arch=arm64 ;; \
+        *) exit 1 ;; \
+    esac; \
+    curl -fsSL --retry 3 "https://github.com/kind2-mc/kind2/releases/download/v3.0.0/kind2-v3.0.0-linux-$arch.tar.gz" -o kind2.tgz; \
+    tar -xzf kind2.tgz kind2; \
+    install kind2 /out/bin/kind2; \
+    mkdir -p /out/share/doc/kind2; \
+    curl -fsSL --retry 3 https://raw.githubusercontent.com/kind2-mc/kind2/v3.0.0/LICENSE.rst -o /out/share/doc/kind2/LICENSE.rst
+
 FROM ubuntu:latest
 
 LABEL org.opencontainers.image.source="https://github.com/EHAPower/devcontainers" \
@@ -136,11 +170,13 @@ RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | \
 # 默认 Python 与 pip 使用预置虚拟环境；各项目仍可用 uv 创建自己的隔离环境。
 RUN uv python install --default && \
     uv venv --python /usr/local/bin/python --seed /opt/python-env && \
-    uv pip install --python /opt/python-env/bin/python PyYAML==6.0.3 Jinja2==3.1.6 && \
+    uv pip install --python /opt/python-env/bin/python PyYAML==6.0.3 Jinja2==3.1.6 z3-solver==5.4.1.0 && \
     uv tool install pre-commit && \
     uv tool install ruff
 
 ENV PATH=/opt/python-env/bin:${PATH}
+
+COPY --from=lustre-tools /out/ /usr/local/
 
 # Node 用于 Web 工具、Dev Container 和文档渲染，均在镜像构建时取最新稳定版。
 RUN npm install -g npm@latest && \
